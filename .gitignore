@@ -1,0 +1,33 @@
+.Rproj.user
+.Rhistory
+.RData
+.httr-oauth
+.DS_Store
+.quarto
+
+.Rproj.user/
+*_files/
+*_cache/
+
+# Student information
+lab_groups.csv
+lab_groups.pdf
+lab_groups.xls
+dissection_groups.pdf
+
+# Student information
+lab_groups.csv
+lab_groups.pdf
+lab_groups.xls
+dissection_groups.pdf
+
+# Literature library
+Literature to Review/
+
+# R Markdown temporary output
+*_files/
+*_cache/
+
+# macOS and RStudio temporary files
+.DS_Store
+.Rproj.user/

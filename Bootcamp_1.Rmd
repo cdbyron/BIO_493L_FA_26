@@ -1,0 +1,129 @@
+---
+title: "Bootcamp_1"
+author: "Craig Byron"
+date: ""
+output: html_document
+---
+You don't have to comment here #######
+# This is all human readable
+## Load libraries for
+### your analysis
+#### in even smaller font
+```{r}
+
+library(tidyverse)
+# install.packages(tidyverse)
+
+library(broom)
+# library(kable)
+library(kableExtra)
+# library()
+
+```
+
+The assignment operator is how we create things to manipulate. Use it to make things
+
+```{r}
+x <- 82/9
+x
+
+
+y <- "Professor Xavier"
+y
+
+```
+Some data sets are built in to RStudio. See iris, toothgrowth, 
+
+```{r}
+iris
+# view(iris)
+
+df <- iris
+```
+
+
+Practice the pipe operator Mac= shift + command + m
+You may see either of two versions of this pipe operator |> or %>% |> |> |> |> |> |> |> |> |> |> |> 
+Practice it here:   
+
+
+Practice the comment symbol (####). Remember why we use the comment mac = shift + command + c
+```{r}
+# |> | |> |> |> |> |> |> |> |> |> |> |> |> |> |> |> |> |> 
+8 + 2
+
+z <- 0.15*17
+z
+
+```
+
+
+
+Let's wrangle the iris dataset with some useful functions:
+-filter() remember "==" means equal to and "!=" means note equal to
+-mutate()
+
+```{r}
+dataframe_1 <- df %>% 
+  filter(Species == "versicolor")
+  
+
+dataframe_2 <- iris %>% 
+  filter((Species == "versicolor") | (Species == "virginica"))
+
+dataframe_3 <- iris %>% 
+  filter(Species != "setosa")
+# == vs !=
+
+dataframe_4 <- dataframe_3 %>% 
+  mutate(petal_shape = Petal.Length/Petal.Width)
+
+dataframe_5 <- iris %>% 
+  filter(Species != "setosa") %>% 
+  mutate(petal_shape = Petal.Length/Petal.Width)
+
+
+```
+
+
+Let's model data YAAAAAAAAY!!!!!!
+
+```{r}
+# Note that standard deviations are modeled to represent a coefficient of variation (CV) of 15%. That is, the standard deviation is 15% the size of the mean. This is a typical CV for samples that are normally distributed.
+
+# all masses are in kilograms
+
+# Modeling an Experiment
+mouth_size <- rnorm(n = 25, mean = 8.5, sd = 1.275)
+largemouth <- as.data.frame(mouth_size) %>% 
+  mutate(fish_type = "Largemouth Bass")
+
+mouth_size <- rnorm(n = 32, mean = 7.2, sd = 1.08)
+spotted <- as.data.frame(mouth_size) %>% 
+  mutate(fish_type = "Spotted Bass")
+
+demo_data <- largemouth %>% 
+  bind_rows(spotted) %>% 
+  rename("IV" = 'fish_type', "DV" = 'mouth_size') 
+
+# How do you model a different example but show the null hypothesis?
+
+```
+
+Graph your modeled data to visualize
+
+```{r}
+demo_data %>% 
+  # filter(DV > 5) |> 
+  ggplot(mapping = aes(x = IV, y = DV)) +
+  geom_boxplot() +
+  geom_jitter() +
+  labs(title = "Bass Mouth Size")
+
+demo_data %>% 
+  ggplot(mapping = aes(x = IV, y = DV)) +
+  geom_violin() +
+  geom_jitter(width = 0.15, height = 0) +
+  labs(title = "Bass Mouth Size")
+```
+

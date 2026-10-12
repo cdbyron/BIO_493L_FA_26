@@ -1,0 +1,353 @@
+---
+title: "Bootcamp 4"
+author: "Craig Byron"
+date: ""
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, error = FALSE)
+# This option helps limit all the extraneous error reporting text that ends up in the html markdown file.
+```
+
+# Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(knitr)
+library(broom)
+library(rrcov)
+library(kableExtra)
+```
+
+# Data Import for Students
+```{r, message=FALSE, warning=FALSE}
+# Recall All_perch is all classes of perch dissectino plus the added metrics from fresh fish in Finland.
+df <- read.csv("~/Library/CloudStorage/OneDrive-MercerUniversity/Byron_Files/Teaching_Documents/BIO_421/2026_Fall/BIO_493L_FA_26/All_Perch.csv")
+```
+
+
+#### These two variables are continuous and numeric. The dependent variable is the one we are trying to predict, weight of an individual fish, or log weight. It is also referred to as the "predicted value". The independent variable is Length, or log length, and it is also referred to as the "predictor" variable. Can we make a good prediction about weight based on length of any given fish? The answer is yes.  
+```{r, message=FALSE, warning=FALSE}
+df %>% 
+  ggplot(aes(x = length_AP, y = body_mass)) + 
+  geom_point() +
+  geom_smooth(method="lm", color = 'purple') 
+
+df %>% 
+  ggplot(aes(x = log_length_AP, y = log_weight)) + 
+  geom_point() +
+  geom_smooth(method="lm", color = 'green') 
+
+df %>% 
+  ggplot(aes(x = log_length_AP, y = log_weight, color = provenance)) + 
+  geom_point() +
+  geom_smooth(method="lm", color = 'green') 
+
+df %>% 
+  ggplot(aes(x = log_length_AP, y = log_weight, color = provenance)) + 
+  geom_point() +
+  geom_smooth(method="lm", fullrange = TRUE) 
+```
+
+### Make a line plot for body and liver mass
+```{r}
+df %>% 
+  ggplot(aes(x = liver_mass, y = body_mass, color = dataset)) + 
+  geom_point() +
+  geom_smooth(color = "red") +
+  geom_smooth(method="lm", color = "purple" )
+
+df %>% 
+  ggplot(aes(x = liver_mass, y = body_mass, color = dataset)) + 
+  geom_point() +
+  geom_smooth(method="lm", fullrange = TRUE)
+
+df %>% 
+  ggplot(aes(x = liver_mass, y = body_mass, color = dataset)) + 
+  geom_point() +
+  geom_smooth(method="lm", fullrange = TRUE) +
+  facet_wrap(~dataset)
+
+df %>% 
+  filter(provenance != "Finland_lake_data") %>% 
+  ggplot(aes(x = liver_mass, y = body_mass, color = dataset)) + 
+  geom_point() +
+  geom_smooth(method="lm", fullrange = TRUE) +
+  ylim(100, 450) +
+  facet_wrap(~dataset)
+
+df %>% 
+  filter(provenance != "Finland_lake_data") %>% 
+  ggplot(aes(x = liver_mass, y = body_mass, color = dataset)) + 
+  geom_point() +
+  geom_smooth(method="lm") +
+  facet_wrap(~dataset, scales = "free") +
+  ylab("Body Mass (g)") +
+  xlab("Liver Mass (g)")
+
+df %>% 
+  filter(provenance != "Finland_lake_data") %>% 
+  ggplot(aes(x = liver_mass, y = body_mass, color = dataset)) + 
+  geom_point() +
+  geom_smooth(method="lm") +
+  facet_wrap(~dataset, scales = "fixed") +
+  ylab("Body Mass (g)") +
+  xlab("Liver Mass (g)")
+  
+```
+
+
+
+### Let's create some 2 sample comparisons
+
+```{r}
+df %>% 
+  ggplot(aes(x = provenance, y = log_weight, fill = dataset)) +
+  geom_boxplot(outlier.shape = NA)
+```
+
+
+### What about some other contrasts that aren't so continuously numeric like a log transformed body mass.
+```{r}
+df %>% 
+  ggplot(aes(x = provenance, y = condition, fill = dataset)) +
+  # geom_boxplot(outlier.shape = NA) +
+  geom_violin() +
+  ylab("Condition Factor, or K (g/cm^3)")
+
+df %>% 
+  ggplot(aes(x = provenance, y = stom_contents, fill = dataset)) +
+  # geom_boxplot(outlier.shape = NA) +
+  geom_violin() +
+  ylab("Mass of Stomach Contents (g)")
+```
+
+
+
+### Now we are going to work with all our data from Javors Lucas Lake from prior field seasons.
+
+```{r}
+df_total <- read.csv("~/Library/CloudStorage/OneDrive-MercerUniversity/Byron_Files/Teaching_Documents/BIO_421/2026_Fall/BIO_493L_FA_26/Javors_Lucas_Lake/Lake_Lucas_Data_total.csv") %>% 
+  mutate(year = as.factor(year)) 
+
+# Create a predator subset
+df_pred <- df_total %>% 
+  filter((Name == "Striped Bass")|(Name == "Largemouth Bass")|(Name == "Spotted Bass")|(Name == "Flathead Catfish")|(Name == "Long Nose Gar")) 
+
+df_bass <- df_total %>% 
+  filter((Name == "Largemouth Bass")|(Name == "Spotted Bass"))
+
+df_pred %>% 
+  group_by(year, Name) %>% 
+  summarise(count = n(), 
+            avg.mass.g = round(mean(Body, na.rm = TRUE),1), 
+            sd.mass.g = round(sd(Body, na.rm = TRUE),1),
+            CV = round((100*(sd.mass.g/avg.mass.g)),1)) %>% 
+  arrange(-avg.mass.g) %>% 
+  kbl(caption = "Table 1. Body Mass Summary Statistics") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+
+
+```
+
+## A. This is an ANOVA
+```{r, message=FALSE, warning=FALSE}
+# H0: The condition factor of the different species are the same.
+
+df_pred %>% 
+  group_by(Name) %>% 
+  summarise(n = n(), 
+            mean_condition = mean(condition, na.rm = TRUE), 
+            sd_condition = sd(condition, na.rm = TRUE),
+            CV = (sd_condition/mean_condition)*100) %>% 
+  kbl(caption = "Descriptive Statistics of Lake Lucas Condition Factor by Species") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+df_pred %>% 
+  ggplot(mapping = aes(x = Name, y = condition)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, height = 0) +
+  labs(title = "Fish from Javors Lucas Lake After First Catch") +
+  ylab("Condition Factor (K)") +
+  xlab("") +
+  coord_flip()
+
+AOV <- aov(condition ~ Name, data = df_pred)
+
+AOV %>% 
+  tidy() %>% 
+  kbl(caption = "ANOVA Table Comparing Condition by Species") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+tukey.test_fish <- AOV %>% 
+  TukeyHSD()
+
+tukey.test_fish %>% 
+  tidy() %>% 
+  arrange(adj.p.value) %>% 
+  select(contrast, estimate, adj.p.value) %>% 
+    kbl(caption = "Tukey Post-hoc Inferential Statistics for Significant Contrasts") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+
+
+```
+
+### But how much variability is there across years? Can really only look at Spotted vs. Largemouth Bass.
+
+```{r}
+df_bass %>% 
+  ggplot(mapping = aes(x = Name, y = condition, fill = Name)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, height = 0) +
+  labs(title = "Condition Factor in Fish from Javors Lucas per Year") +
+  ylab("Condition Factor (K)") +
+  xlab("") +
+  # coord_flip() +
+  facet_wrap(~year)
+
+
+# Are those with fuller stomachs matching those in best condition?
+df_bass %>% 
+  ggplot(mapping = aes(x = Name, y = stomach_contents, fill = Name)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, height = 0) +
+  labs(title = "Meal Mass in Fish from Javors Lucas per Year") +
+  ylab("stomach contents mass (g)") +
+  xlab("") +
+  # coord_flip() +
+  facet_wrap(~year)
+```
+
+## B. This is an ANOVA that has Two Independent Variables (2 x 2 Design). 
+```{r, message=FALSE, warning=FALSE}
+# H0: The stomach contents factor of the different species across years are the same.
+
+df_bass %>% 
+  group_by(Name, year) %>% 
+  summarise(n = n(), 
+            mean_meal = mean(stomach_contents, na.rm = TRUE), 
+            sd_meal = sd(stomach_contents, na.rm = TRUE),
+            CV = (sd_meal/mean_meal)*100) %>% 
+  kbl(caption = "Descriptive Statistics of Meal Mass by Species") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+df_bass %>% 
+  ggplot(mapping = aes(x = Name, y = stomach_contents, fill = Name)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, height = 0) +
+  labs(title = "Meal Mass in Fish from Javors Lucas per Year") +
+  ylab("stomach contents mass (g)") +
+  xlab("") +
+  facet_wrap(~year)
+
+# The Two Way ANOVA uses two IVs. Interaction stats come with using *
+MAOV <- aov(stomach_contents ~ Name * year, data = df_bass)
+
+MAOV %>% 
+  tidy() %>% 
+  kbl(caption = "Twi-Way ANOVA Table Comparing Meal Mass by Species and Year") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+tukey.test_fish <- MAOV %>% 
+  TukeyHSD()
+
+tukey.test_fish %>% 
+  tidy() %>% 
+  arrange(adj.p.value) %>% 
+  select(contrast, estimate, adj.p.value) %>% 
+    kbl(caption = "Tukey Post-hoc Inferential Statistics for Significant Contrasts") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+
+
+```
+
+### C. Same 2 x 2 Design but with Condition Factor as DV
+```{r, message=FALSE, warning=FALSE}
+# H0: The condition factor of the different species across years are the same.
+
+df_bass %>% 
+  group_by(Name, year) %>% 
+  summarise(n = n(), 
+            mean_condition = mean(condition, na.rm = TRUE), 
+            sd_condition = sd(condition, na.rm = TRUE),
+            CV = (sd_condition/mean_condition)*100) %>% 
+  kbl(caption = "Descriptive Statistics of Condition Factor by Species") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+df_bass %>% 
+  ggplot(mapping = aes(x = Name, y = condition, fill = Name)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, height = 0) +
+  labs(title = "Condition Factor of Fish in Javors Lucas Lake per Year") +
+  ylab("Condition Factor - K (g/cm^3)") +
+  xlab("") +
+  facet_wrap(~year)
+
+# The Two Way ANOVA uses two IVs. Interaction stats come with using *
+MAOV <- aov(condition ~ Name * year, data = df_bass)
+
+MAOV %>% 
+  tidy() %>% 
+  kbl(caption = "Twi-Way ANOVA Table Comparing Condition by Species and Year") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+tukey.test_fish <- MAOV %>% 
+  TukeyHSD()
+
+tukey.test_fish %>% 
+  tidy() %>% 
+  arrange(adj.p.value) %>% 
+  select(contrast, estimate, adj.p.value) %>% 
+    kbl(caption = "Tukey Post-hoc Inferential Statistics for Significant Contrasts") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+
+
+```
+
+### D. Same 2 x 2 Design but with Fullness Ratio as DV. This is calculated as mass of stomach full/empty
+```{r, message=FALSE, warning=FALSE}
+# H0: The fullness ratio of the stomachs of the different species across years are the same.
+
+df_bass %>% 
+  group_by(Name, year) %>% 
+  summarise(n = n(), 
+            mean_fullness = mean(fullness, na.rm = TRUE), 
+            sd_fullness = sd(fullness, na.rm = TRUE),
+            CV = (sd_fullness/mean_fullness)*100) %>% 
+  kbl(caption = "Descriptive Statistics of Fullness Ratio by Species") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+df_bass %>% 
+  ggplot(mapping = aes(x = Name, y = fullness, fill = Name)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, height = 0) +
+  labs(title = "Fullness Ratio in Fish from Javors Lucas per Year") +
+  ylab("stomach mass full/empty") +
+  xlab("") +
+  facet_wrap(~year)
+
+# The Two Way ANOVA uses two IVs. Interaction stats come with using *
+MAOV <- aov(fullness ~ Name * year, data = df_bass)
+
+MAOV %>% 
+  tidy() %>% 
+  kbl(caption = "Two-Way ANOVA Table Comparing Fullness Ratio by Species and Year") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+tukey.test_fish <- MAOV %>% 
+  TukeyHSD()
+
+tukey.test_fish %>% 
+  tidy() %>% 
+  arrange(adj.p.value) %>% 
+  select(contrast, estimate, adj.p.value) %>% 
+    kbl(caption = "Tukey Post-hoc Inferential Statistics for Significant Contrasts") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+
+
+```

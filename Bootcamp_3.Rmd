@@ -1,0 +1,440 @@
+---
+title: "Bootcamp 3"
+author: "Craig Byron"
+date: ""
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, error = FALSE)
+# This option helps limit all the extraneous error reporting text that ends up in the html markdown file.
+```
+
+# Load libraries
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(knitr)
+library(broom)
+library(rrcov)
+library(kableExtra)
+```
+
+# Data Import for Students
+```{r, message=FALSE, warning=FALSE}
+# Recall there is a "fish" data set containing several species of fish from a lake in Norway.
+data(fish)
+
+# What is the Fish Catch Data Set? Toggle off the comment to find out.  
+# ?fish
+
+# Clean up the variables in this data set.
+name_fish <- fish %>% 
+  # mutate(Species = as.character(Species)) %>% 
+  mutate(name = recode(Species, '1'="Bream", '2'="Whitefish", '3'="Roach", '4'="Parkki", '5'="Smelt", '6'="Pike", '7'="Perch"))
+
+# Create a subset of data that represents one taxon.
+perch <- name_fish %>% 
+  filter(name == "Perch")
+```
+
+#### These two variables are continuous and numeric. The dependent variable is the one we are trying to predict, weight of an individual fish. It is also referred to as the "predicted value". The independent variable is Length and it is also referred to as the "predictor" variable. Can we make a good prediction about weight based on length of any given fish? The answer is yes.  
+```{r, message=FALSE, warning=FALSE}
+perch %>% 
+  ggplot(aes(x = Length2, y = Weight)) + 
+  # geom_point() +
+  geom_smooth() +
+  geom_smooth(method="lm", color = 'red') 
+```
+
+#### What you see from this figure is that a linear regression is not the best fit for these data because the slope changes for long fish compared to small fish. This is a justification for a log transformation of the data. Notice how the scatterplot fits the data better after each axis has been log  transformed. Where do you see clumps of data points that indicate differential grouping?  
+
+```{r, message=FALSE, warning=FALSE}
+# Raw Data
+perch %>% 
+  ggplot(aes(x = Length2, y = Weight)) + 
+  geom_point() +
+  geom_smooth(method="lm", color = 'red')
+
+# Log Base 10 Transform
+perch %>% 
+  ggplot(aes(x = log10(Length2), y = log10(Weight))) + 
+  geom_point() +
+  geom_smooth(method="lm", color = 'red')
+
+# Natural Log Transform
+perch %>% 
+  ggplot(aes(x = log(Length2), y = log(Weight))) + 
+  geom_point() +
+  geom_smooth(method="lm", color = 'red')
+
+
+```
+
+
+#### In order to have a better distribution to base our model off of then let's filter out the fish above 400 g. On other words, only include fish 399 g or less. Also, filter out the tiniest fish that seems to be separated from  the other points. 
+```{r, message=FALSE, warning=FALSE}
+perch_df <- perch %>% 
+  filter(Weight<400) %>% 
+  filter(Weight>10)
+
+# How many fish are now in the data frame?  
+
+# Raw Data
+perch_df %>% 
+  ggplot(aes(x = Length2, y = Weight)) + 
+  geom_point() +
+  geom_smooth(method="lm", color = 'red')
+
+# Log Base 10 Transform
+perch_df %>% 
+  ggplot(aes(x = log10(Length2), y = log10(Weight))) + 
+  geom_point() +
+  geom_smooth(method="lm", color = 'red')
+```
+
+## What is the linear formula for this best fitting line?  
+## Another may to ask is to say, what is the y = mx + b? 
+
+```{r, message=FALSE, warning=FALSE}
+# This is the basic formula for the linear regression
+# your_model <- lm(y_response ~ x_predictor, data = your_data)
+perch.model <- lm(Weight ~ Length2, data = perch_df)
+log.perch.model <- lm((log(Weight) ~ log(Length2)), data = perch_df)
+
+# This is fuller set of results that describe the inferential statistics.  
+summary(perch.model)
+summary(log.perch.model)  
+
+# Here is a nice quality table
+tidy.perch.model <- perch.model %>% 
+  tidy() 
+
+tidy.perch.model %>% 
+  kable(caption = "Linear Fit Coefficients for Typical Perch") %>% 
+  kable_classic(full_width = F, html_font = "Arial")
+
+tidy.log.perch.model <- log.perch.model %>% 
+  tidy() 
+
+tidy.log.perch.model %>% 
+  kable(caption = "Linear Fit Coefficients of Log Transformed Data for Typical Perch") %>% 
+  kable_classic(full_width = F, html_font = "Arial")
+  
+# Whether its log units or units in grams and cm, 
+# You want to know how you can predict the y-response (mass) by measuring the x-predictor (length)
+# How many units of y are predicted with 1 unit of x is what the coefficients tell you.  
+
+# What's the model we use to estimate this?
+# Y = mx + b  
+# Y = (b1*x) + b0    
+# weight = ((model slope) * (Length2)) + (y-intercept) 
+```
+
+## We then augment our data set with information from the model fit and plot a residual plot:
+```{r, message=FALSE, warning=FALSE}
+perch.augmented.log <- augment(log.perch.model, perch_df)
+
+perch.augmented.log %>% 
+  ggplot(aes(log(Length2), log(Weight))) + 
+  geom_point() + geom_smooth(method="lm", color="red",se=FALSE) +
+  geom_segment(aes(xend = log(Length2), yend = .fitted), linetype="dashed") +
+  labs(title = "Residuals for Perch Weight Model")
+
+perch.augmented.log %>% 
+  ggplot(aes(log(Length2), .resid)) + 
+  geom_point() + 
+  geom_hline(yintercept = 0, color="firebrick", linetype="dashed")
+```
+
+## Now use the code from above to generate the augmented perch data using the raw data and not the log transformed version.  
+```{r, message=FALSE, warning=FALSE}
+
+
+
+
+
+```
+
+#### Remember that we created this log transformed linear model earlier that describes how length relates to weight  
+ 
+```{r, message=FALSE, warning=FALSE}
+perch.model
+log.perch.model
+
+tidy.perch.model
+tidy.log.perch.model
+```
+
+#### With this model in hand one can make a prediction about what length of fish we need to catch in order to bring home market premium fillets. Assume that a fish greater than 200 g qualifies in this regard. Since you won't be able to quickly weigh the fish during the catch, you have trained workers to compare each fish to a ruler. What is the length of this ruler to represent the smallest cutoff lengths for premium market rate fish fillets?  
+
+```{r, message=FALSE, warning=FALSE}
+n_weight <- 200 
+
+n_log_weight <- log(n_weight)
+
+# What is the slope of the relationship from the model? 
+slope <- tidy.log.perch.model %>%
+  filter(term == "log(Length2)") %>% 
+  pull(estimate)
+
+# What is the y-intercept of the relationship from the model?  
+y_int <- tidy.log.perch.model %>%
+  filter(term == "(Intercept)") %>% 
+  pull(estimate)
+
+# Use the log of this x observation to predict y with new intercept and slope estimates.  
+# Y = mx + b  
+# Y = (b1*x) + b0    
+# weight = ((model slope) * (Length2)) + (y-intercept) 
+# Next let's rearrange this equation to solve for length2 where fish mass is greater than 200 g.  
+# Length2 = (weight - y-intercept)/model slope  
+n_log_length <- ((n_log_weight - y_int)/(slope))
+
+# Inverse log transform for "weight"
+n_length <- exp(n_log_length)
+
+# 25.15 cm is the minimum length to keep. This is the minimum length of the fish you want to keep in order to produce exclusively premium market rate fish fillets.
+```
+
+Now plug this into a graph of the raw data as coordinates to see what inverse log transformation tells us about how to collect the most of our target fish.
+
+```{r, message=FALSE, warning=FALSE}
+perch_df %>% 
+  ggplot(aes(x = Length2, y = Weight)) + 
+  geom_point() +
+  geom_hline(yintercept = n_weight, color = 'green') +
+  geom_vline(xintercept = n_length, color = 'green')
+```
+
+# Now let's load our data from perch dissection and join it with prior dissections.  
+
+#### joining  
+#### combining  
+#### writing to .csv  
+#### 
+
+## Data Import
+```{r, message=FALSE, warning=FALSE}
+df_1 <- read.csv("~/Library/CloudStorage/OneDrive-MercerUniversity/Byron_Files/Teaching_Documents/BIO_421/2026_Fall/BIO_493L_FA_26/perch_1.csv") %>% 
+  mutate(condition = 100*(body_mass/(length_AP)^3)) %>% 
+  mutate(log_length_AP = log(length_AP), log_weight = log(body_mass), log_length_DV = log(length_DV)) %>% 
+  mutate(lab_group = as.character(lab_group)) %>% 
+  mutate(dataset = "dissection_1")
+
+df_2 <- read.csv("~/Library/CloudStorage/OneDrive-MercerUniversity/Byron_Files/Teaching_Documents/BIO_421/2026_Fall/BIO_493L_FA_26/perch_2.csv") %>% 
+  mutate(condition = 100*(body_mass/(length_AP)^3)) %>% 
+  mutate(log_length_AP = log(length_AP), log_weight = log(body_mass), log_length_DV = log(length_DV)) %>% 
+  mutate(lab_group = as.character(lab_group)) %>% 
+  mutate(Spec = as.character(Spec)) %>% 
+  mutate(dataset = "dissection_2")
+
+df_3 <- read.csv("~/Library/CloudStorage/OneDrive-MercerUniversity/Byron_Files/Teaching_Documents/BIO_421/2026_Fall/BIO_493L_FA_26/perch_3.csv") %>% 
+  mutate(condition = 100*(body_mass/(length_AP)^3)) %>% 
+  mutate(log_length_AP = log(length_AP), log_weight = log(body_mass), log_length_DV = log(length_DV)) %>% 
+  mutate(dataset = "dissection_3")
+
+df_4 <- read.csv("~/Library/CloudStorage/OneDrive-MercerUniversity/Byron_Files/Teaching_Documents/BIO_421/2026_Fall/BIO_493L_FA_26/perch_4.csv") %>% 
+  mutate(condition = 100*(body_mass/(length_AP)^3)) %>% 
+  mutate(log_length_AP = log(length_AP), log_weight = log(body_mass), log_length_DV = log(length_DV)) %>% 
+  mutate(dataset = "dissection_4")
+
+#Merge the three days of perch dissection
+df <- df_1 %>% 
+  full_join(df_2) %>% 
+  full_join(df_3) %>% 
+  full_join(df_4) %>% 
+  filter(log_length_AP > 2) %>% 
+  mutate(rel_liver = 100*(liver_mass/body_mass)) %>% 
+  mutate(rel_gonad = 100*(gonad_mass/body_mass)) %>% 
+  mutate(rel_heart = 100*(heart_mass/body_mass)) %>% 
+  mutate(stom_contents = stomach_mass_full-stomach_mass_empty)
+
+# Recall the "fish" data set containing several species of fish from a lake in Norway. Perch was one of the species listed there. 
+# We cretaed a dataframe that added all the fish names (fish_names)
+# Then we created a subset of data that represents one taxon.
+perch <- name_fish %>% 
+  filter(name == "Perch")
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+df %>% 
+  ggplot(aes(x = log_length_AP, y = log_weight)) + 
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(title = "Perch fish from Carolina Supply Company") +
+  ylab("log weight (g)") +
+  xlab("log length (cm)")
+
+df %>% 
+  ggplot(aes(x = log_length_AP, y = log_weight)) + 
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(title = "Perch fish from Carolina Supply Company") +
+  ylab("log weight (g)") +
+  xlab("log length (cm)") +
+  facet_wrap(~dataset)
+
+```
+
+### Combine our class sample of perch with those from the Finland data set.
+```{r, message=FALSE, warning=FALSE}
+# select and transform the Finland Lake perch into the proper scale and variable names of our lab data set.
+
+Finland_perch <- perch %>% 
+  select(name, Weight, Length3) %>% 
+  rename(taxon = name, body_mass = Weight, length_AP = Length3) %>% 
+  mutate(condition = 100*(body_mass/(length_AP)^3)) %>% 
+  mutate(log_length_AP = log(length_AP), log_weight = log(body_mass)) %>% 
+  mutate(provenance = "Finland_lake_data") %>% 
+  mutate(taxon = recode(taxon, 'perch'="Perch")) %>% 
+  mutate(dataset = "dissection_Finland")
+
+# Now let's combine both data sets into the object df_2
+
+All_Perch <- df %>% 
+  full_join(Finland_perch)
+
+# Now look at both sets of data while coloring scatter points.
+All_Perch %>% 
+  ggplot(aes(x = log_length_AP, y = log_weight, color = provenance)) + 
+  geom_point() +
+  geom_smooth(method="lm", se = FALSE,  fullrange = TRUE) +
+  labs(title = "Comparative Perch Fish") +
+  ylab("log weight (g)") +
+  xlab("log length (cm)")
+
+df %>% 
+  ggplot(aes(x = log_length_AP, y = log_weight, color = sex)) + 
+  geom_point() +
+  geom_smooth(method="lm", se = FALSE,  fullrange = TRUE) +
+  labs(title = "Comparative Perch Fish") +
+  ylab("log weight (g)") +
+  xlab("log length (cm)")
+```
+
+# Now think of ways to use our perch data to conduct 2 sample comparisons. 
+#### 2 Sample Comparisons can take place between male vs. female, 2023 sample vs. 2025 sample
+#### Dependent variables should be heart mass, liver mass, stomach contents mass, and their relative forms (ratios with body mass).
+
+
+# Condition Factor
+```{r, message=FALSE, warning=FALSE}
+
+df %>% 
+  ggplot(aes(x = sex, y = condition)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15) +
+    labs(title = "Condition Factor Comparing Male and Female Fish") 
+
+
+df %>% 
+  ggplot(aes(x = sex, y = condition)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15, aes(color = dataset)) +
+    labs(title = "Condition Factor Comparing Male and Female Fish") 
+
+df %>% 
+  ggplot(aes(x = sex, y = condition)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15, aes(color = dataset)) +
+    labs(title = "Condition Factor Comparing Male and Female Fish") +
+    facet_wrap(~dataset)
+
+
+
+
+
+
+```
+
+
+
+# Relative Heart Mass
+```{r, message=FALSE, warning=FALSE}
+df %>% 
+  ggplot(aes(x = sex, y = rel_heart)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15) +
+    labs(title = "Relative Heart Mass Comparing Male and Female Fish") +
+    facet_wrap(~dataset)
+# Visualization
+df %>% 
+  ggplot(aes(x = sex, y = rel_heart)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15) +
+    labs(title = "Relative Heart Mass Comparing Male and Female Fish") 
+
+# Summary stats
+sumstats <- df %>% 
+  group_by(sex) %>% 
+  summarise(count = n(), mean = mean(rel_heart, na.rm = TRUE), sd = sd(rel_heart, na.rm = TRUE), CV = ((100*sd)/mean))
+
+sumstats %>% 
+  kbl(caption = "Descriptive Statistics of Reltiave Heart Mass") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+# Inferential Stats
+t.test(rel_heart ~ sex, data = df)
+
+```
+
+# Relative Liver Mass
+```{r, message=FALSE, warning=FALSE}
+df %>% 
+  ggplot(aes(x = sex, y = rel_liver)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15) +
+    labs(title = "Relative Liver Mass Comparing Male and Female Fish") +
+    facet_wrap(~dataset)
+
+df %>% 
+  ggplot(aes(x = sex, y = rel_liver)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15) +
+    labs(title = "Relative Liver Mass Comparing Male and Female Fish")
+
+```
+
+# Relative Gonad Mass
+```{r, message=FALSE, warning=FALSE}
+df %>% 
+  ggplot(aes(x = sex, y = rel_gonad)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15) +
+    labs(title = "Relative Gonad Mass Comparing Male and Female Fish") +
+    facet_wrap(~dataset)
+
+df %>% 
+  ggplot(aes(x = sex, y = rel_gonad)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15) +
+    labs(title = "Relative Gonad Mass Comparing Male and Female Fish")
+```
+
+
+
+# Stomach Contents Mass
+```{r, message=FALSE, warning=FALSE}
+df %>% 
+  ggplot(aes(x = sex, y = stom_contents)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15) +
+    labs(title = "Stomach Contents Comparing Male and Female Fish") +
+    facet_wrap(~dataset)
+
+df %>% 
+  ggplot(aes(x = sex, y = stom_contents)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15) +
+    labs(title = "Stomach Contents Comparing Male and Female Fish")
+
+df %>% 
+  ggplot(aes(x = log_length_AP, y = stom_contents, color = sex)) + 
+  geom_point() +
+  geom_smooth(method="lm", se = FALSE,  fullrange = TRUE) +
+  labs(title = "Comparative Perch Fish") +
+  ylab("log weight stomach contents (g)") +
+  xlab("log length (cm)")
+
+```
